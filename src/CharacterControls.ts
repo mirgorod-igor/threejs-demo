@@ -38,9 +38,9 @@ export class CharacterControls {
             else {
                 value.setLoop(LoopRepeat, Infinity).clampWhenFinished = false
             }
-            /*if (key == _currentAction) {
+            if (key == _currentAction) {
                 value.play()
-            }*/
+            }
         }
 
         this._model.scale.setScalar(SCALAR)
