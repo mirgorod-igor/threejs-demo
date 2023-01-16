@@ -1,9 +1,9 @@
 import {
-    AmbientLight, AxesHelper, Clock,
-    Color, DirectionalLight,
+    AxesHelper, Box3, BoxGeometry, BoxHelper, CameraHelper, Clock,
+    Color, DirectionalLight, DirectionalLightHelper, Mesh, MeshBasicMaterial, Object3D,
     PerspectiveCamera,
     Raycaster,
-    Scene,
+    Scene, SphereGeometry, sRGBEncoding,
     Vector3, WebGLRenderer
 } from 'three'
 
@@ -11,12 +11,14 @@ import * as objs from './objects'
 import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls'
 import {degToRad} from 'three/src/math/MathUtils'
 import {createMainCharacter} from './objects'
+import {sin} from 'three/examples/jsm/nodes/shadernode/ShaderNodeBaseElements'
+import DirLightHelper from './DirLightImage'
 
 // SCENE
 const scene = new Scene()
 scene.background = new Color(0xffffff)
 
-const axesHelper = new AxesHelper( 5 )
+const axesHelper = new AxesHelper(5)
 scene.add(axesHelper)
 
 
@@ -25,12 +27,15 @@ const camera = new PerspectiveCamera(45, window.innerWidth / window.innerHeight,
 camera.position.x = 0
 camera.position.y = 5
 camera.position.z = -25
+scene.add(camera)
+
 
 
 // RENDERER
 const renderer = new WebGLRenderer({antialias: true})
 renderer.setPixelRatio(window.devicePixelRatio)
 renderer.setSize(window.innerWidth, window.innerHeight)
+//renderer.outputEncoding = sRGBEncoding
 renderer.shadowMap.enabled = true
 
 
@@ -42,27 +47,40 @@ controls.maxPolarAngle = degToRad(80)// - 0.05
 //controls.enableRotate = false
 controls.update()
 
+delete controls.mouseButtons['RIGHT']
+
 
 // LIGHTS
-function light() {
-    scene.add(new AmbientLight(0xffffff, 0.7))
+function createLight(target: Object3D) {
+    //scene.add(new AmbientLight(0xffffff, 0.7))
+    const light = new DirectionalLight(0xffffff, 1)
+    light.castShadow = true
+    light.target = target
 
-    const dirLight = new DirectionalLight(0xffffff, 1)
-    dirLight.position.set(-60, 100, -10)
-    dirLight.castShadow = true
-    dirLight.shadow.camera.top = 50
-    dirLight.shadow.camera.bottom = -50
-    dirLight.shadow.camera.left = -50
-    dirLight.shadow.camera.right = 50
-    dirLight.shadow.camera.near = 0.1
-    dirLight.shadow.camera.far = 200
-    dirLight.shadow.mapSize.width = 4096
-    dirLight.shadow.mapSize.height = 4096
-    scene.add(dirLight)
-    // scene.add( new THREE.CameraHelper(dirLight.shadow.camera))
+    /*light.shadow.camera.top = 20
+    light.shadow.camera.bottom = -20
+    light.shadow.camera.left = -20
+    light.shadow.camera.right = 20
+    light.shadow.camera.near = 0.1
+    light.shadow.camera.far = 40*/
+    //light.shadow.mapSize.width = 4096
+    //light.shadow.mapSize.height = 4096
+
+
+    const lightObj = new DirLightHelper(light, 1, 0xff00FF)
+    lightObj.translateZ(-10)
+    //lightObj.add(light)
+    //light.add(lightObj)
+//light.add(lightObj)
+    //scene.add(lightObj)
+    camera
+        .add(light)
+        //.add(new CameraHelper(light.shadow.camera))
+
+    //lightObj.rotateX(Math.PI / 2)
+
+    return { light, lightObj }
 }
-
-light()
 
 
 // CONTROL KEYS
@@ -85,16 +103,16 @@ let characterControls = await createMainCharacter(camera, controls)
 
 scene.add(characterControls.object)
 
+
 objs.load(scene, camera, controls)
 
+const {light, lightObj} = createLight(characterControls.object)
 
 
 const raycaster = new Raycaster(new Vector3(), new Vector3(0, -1, 0), 0, 10)
 
 
 let prevTime = performance.now()
-
-//scene.add(controls.camera)
 
 
 function onWindowResize() {
@@ -114,6 +132,8 @@ function animate() {
     let mixerUpdateDelta = clock.getDelta()
     characterControls?.update(mixerUpdateDelta, keysPressed)
     controls.update()
+    lightObj.update()
+
     renderer.render(scene, camera)
     requestAnimationFrame(animate)
 }

@@ -156,9 +156,10 @@ export class CharacterControls {
         this._camera.position.z += moveZ
 
         // update camera target
-        this.cameraTarget.x = this._model.position.x
-        this.cameraTarget.y = this._model.position.y + 1
-        this.cameraTarget.z = this._model.position.z
+        const pos = this._model.position
+        this.cameraTarget.x = pos.x
+        this.cameraTarget.y = pos.y + 1
+        this.cameraTarget.z = pos.z
         this._controls.target = this.cameraTarget
     }
 

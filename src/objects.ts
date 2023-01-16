@@ -113,9 +113,8 @@ const animationsMap = new Map<animation.Action, AnimationAction>()
 
 
 export const createMainCharacter = async (camera: Camera, controls: OrbitControls) => {
-    const gltf = await glbLoader.loadAsync( man)
-
-    const model = gltf.scene
+    const model = (await glbLoader.loadAsync( man)).scene
+    console.log(model)
     model.traverse(obj => {
         if ('isMesh' in obj && obj.isMesh)
             obj.castShadow = true
