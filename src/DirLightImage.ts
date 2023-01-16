@@ -71,7 +71,7 @@ class DirLightHelper extends Object3D {
         _v1.setFromMatrixPosition( this.light.matrixWorld );
         _v2.setFromMatrixPosition( this.light.target.matrixWorld );
         _v3.subVectors( this.light.target.position, this.light.position );
-console.log(_v1, this.light.position)
+//console.log(_v1, this.light.position)
         //this.lightPlane.lookAt( this.light.target.position );
 
         if ( this.color !== undefined ) {

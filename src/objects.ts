@@ -19,6 +19,8 @@ import idle_to_braced_hang from './assets/models/idle_to_braced_hang.fbx?url'
 import braced_hang_drop from './assets/models/braced_hang_drop.fbx?url'
 import idle from './assets/models/idle.fbx?url'
 import running from './assets/models/running.fbx?url'
+import jump from './assets/models/jump.fbx?url'
+import walking from './assets/models/walking.fbx?url'
 
 
 let floorGeometry: BufferGeometry = new PlaneGeometry(2000, 2000, 100, 100)
@@ -128,6 +130,8 @@ export const createMainCharacter = async (camera: Camera, controls: OrbitControl
         ([
             ['idle', idle],
             ['running', running],
+            ['jump', jump],
+            ['walking', walking],
             ['idle_to_braced_hang', idle_to_braced_hang],
             ['braced_hang_drop', braced_hang_drop]
         ] as [animation.Action, string][])

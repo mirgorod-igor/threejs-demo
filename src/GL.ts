@@ -11,7 +11,6 @@ import * as objs from './objects'
 import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls'
 import {degToRad} from 'three/src/math/MathUtils'
 import {createMainCharacter} from './objects'
-import {sin} from 'three/examples/jsm/nodes/shadernode/ShaderNodeBaseElements'
 import DirLightHelper from './DirLightImage'
 
 // SCENE
