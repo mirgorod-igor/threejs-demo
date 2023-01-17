@@ -15,6 +15,7 @@ export class CharacterControls {
 
     // state
     #state: animation.State = 'ground'
+    #pose: animation.Pose = 'normal'
     toggleRun = true
 
 
@@ -77,21 +78,29 @@ export class CharacterControls {
     update(delta: number, keysPressed: any) {
         let nextAction = this._currentAction
 
-        if (runningOnceAction[nextAction]) {
+        const isRunning = this.currentAction.isRunning()
 
-            const isRunning = this.currentAction.isRunning()
+        if (runningOnceAction[this._currentAction]) {
 
             // если закончилась анимация
             if (!isRunning) {
-                // если было висение
-                if (runningOnceAction.braced_hang_drop)
+                // если был запрыг
+                if (runningOnceAction.idle_to_braced_hang) {
+                    this.#state = 'hanging'
+                    nextAction = 'hanging_idle'
+                }
+
+                // если был спрыг
+                if (runningOnceAction.braced_hang_drop) {
                     this.#state = 'ground'
+                    nextAction = 'idle'
+                }
                 // если был jump
                 if (runningOnceAction.jump)
                     this.dirOffsetJump = undefined
             }
 
-            runningOnceAction[nextAction] = isRunning
+            runningOnceAction[this._currentAction] = isRunning
         }
         else if (keysPressed[SPACE]) {
             console.log('pressed space')
@@ -122,7 +131,7 @@ export class CharacterControls {
             }
         }
 
-        console.log(this._currentAction + ' => ' + nextAction, this.currentAction.isRunning())
+        console.log(this._currentAction + ' => ' + nextAction, isRunning)
 
 
         if (this._currentAction != nextAction) {

@@ -14,14 +14,60 @@ import {CharacterControls} from './CharacterControls'
 import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls'
 import {FBXLoader} from 'three/examples/jsm/loaders/FBXLoader'
 
+import man1 from './assets/models/man.gltf?url'
 import man from './assets/models/63bdb99e5a5d0e0739cc496f.glb?url'
 import idle_to_braced_hang from './assets/models/idle_to_braced_hang.fbx?url'
+import hanging_idle from './assets/models/hanging_idle.fbx?url'
 import braced_hang_drop from './assets/models/braced_hang_drop.fbx?url'
 import idle from './assets/models/idle.fbx?url'
 import running from './assets/models/running.fbx?url'
 import jump from './assets/models/jump.fbx?url'
 import walking from './assets/models/walking.fbx?url'
+import {GLTFExporter} from 'three/examples/jsm/exporters/GLTFExporter'
 
+
+const exportScene = (input: Object3D) => {
+    const exporter = new GLTFExporter()
+    exporter.parse(
+        input,
+        function (result) {
+            if (result instanceof ArrayBuffer) {
+                saveArrayBuffer(result, 'scene.glb');
+            } else {
+                const output = JSON.stringify(result, null, 2);
+                console.log(output);
+                saveString(output, 'scene.gltf');
+            }
+        },
+        function (error) {
+            console.log('An error happened during parsing', error);
+        },
+        {
+            animations: input.animations,
+
+        }
+    )
+}
+
+function save( blob: Blob, filename: string ) {
+    link.href = URL.createObjectURL(blob)
+    link.download = filename
+    link.click()
+    // URL.revokeObjectURL( url ); breaks Firefox...
+}
+
+function saveString( text: BlobPart, filename: string ) {
+    save( new Blob( [ text ], { type: 'text/plain' } ), filename );
+}
+
+
+function saveArrayBuffer( buffer: BlobPart, filename: string ) {
+    save( new Blob( [ buffer ], { type: 'application/octet-stream' } ), filename );
+}
+
+const link = document.createElement('a')
+link.style.display = 'none'
+document.body.appendChild(link)
 
 let floorGeometry: BufferGeometry = new PlaneGeometry(2000, 2000, 100, 100)
 floorGeometry.rotateX(-Math.PI / 2)
@@ -113,14 +159,18 @@ export const createFBXMainCharacter = (camera: Camera, controls: OrbitControls, 
 
 const animationsMap = new Map<animation.Action, AnimationAction>()
 
+let pos: Vector3
 
 export const createMainCharacter = async (camera: Camera, controls: OrbitControls) => {
     const model = (await glbLoader.loadAsync( man)).scene
-    console.log(model)
+
     model.traverse(obj => {
         if ('isMesh' in obj && obj.isMesh)
             obj.castShadow = true
     })
+
+
+    pos = model.children[0].children.find(it => it.type == 'Bone')!.position
 
 
     const mixer = new AnimationMixer(model)
@@ -133,6 +183,7 @@ export const createMainCharacter = async (camera: Camera, controls: OrbitControl
             ['jump', jump],
             ['walking', walking],
             ['idle_to_braced_hang', idle_to_braced_hang],
+            ['hanging_idle', hanging_idle],
             ['braced_hang_drop', braced_hang_drop]
         ] as [animation.Action, string][])
         .map(async it => [
@@ -140,8 +191,16 @@ export const createMainCharacter = async (camera: Camera, controls: OrbitControl
         ])
     )
 
-    for (const anim of anims)
+    for (const anim of anims) {
+        anim[1].animations[0].name = anim[0]
+        //console.log(anim[0], anim[1])
+        //model.animations.push(anim[1].animations[0])
         animationsMap.set(anim[0], mixer.clipAction(anim[1].animations[0]))
+    }
+
+
+    //exportScene(model)
+
 
     return characterControls = new CharacterControls(
         model, mixer, animationsMap, controls, camera, 'idle'
