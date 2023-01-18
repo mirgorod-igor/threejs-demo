@@ -53,7 +53,7 @@ export class CharacterControls {
         }
 
         this._model.scale.setScalar(SCALAR)
-        this._controls.minDistance = 20
+        this._controls.minDistance = 10
         this._controls.maxDistance = 30
 
         this.updateCameraTarget(0, 0)
@@ -137,7 +137,7 @@ export class CharacterControls {
         if (this._currentAction != nextAction) {
             const current = this.currentAction
             const next = this.action(nextAction)!
-
+            //next.setDuration(5)
             current.fadeOut(this.fadeDuration)
             next.reset().fadeIn(this.fadeDuration).play()
             if (nextAction in runningOnceAction)

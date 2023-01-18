@@ -12,23 +12,26 @@ import {degToRad} from 'three/src/math/MathUtils'
 import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader'
 import {CharacterControls} from './CharacterControls'
 import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls'
-import {FBXLoader} from 'three/examples/jsm/loaders/FBXLoader'
 
-import man1 from './assets/models/man.gltf?url'
-import man from './assets/models/63bdb99e5a5d0e0739cc496f.glb?url'
-import idle_to_braced_hang from './assets/models/idle_to_braced_hang.fbx?url'
-import hanging_idle from './assets/models/hanging_idle.fbx?url'
-import braced_hang_drop from './assets/models/braced_hang_drop.fbx?url'
-import idle from './assets/models/idle.fbx?url'
-import running from './assets/models/running.fbx?url'
-import jump from './assets/models/jump.fbx?url'
-import walking from './assets/models/walking.fbx?url'
-import {GLTFExporter} from 'three/examples/jsm/exporters/GLTFExporter'
+
+import man from './assets/models/man.glb?url'
+import idle_to_braced_hang from './assets/models/idle_to_braced_hang.glb?url'
+import hanging_idle from './assets/models/hanging_idle.glb?url'
+import braced_hang_drop from './assets/models/braced_hang_drop.glb?url'
+
+import idle from './assets/models/idle.glb?url'
+import running from './assets/models/running.glb?url'
+import jump from './assets/models/jump.glb?url'
+import walking from './assets/models/walking.glb?url'
+
+import {OBJExporter} from 'three/examples/jsm/exporters/OBJExporter'
 
 
 const exportScene = (input: Object3D) => {
-    const exporter = new GLTFExporter()
-    exporter.parse(
+    const exporter = new OBJExporter()
+    const str = exporter.parse(input)
+    saveString(str, 'scene.obj');
+    /*exporter.parse(
         input,
         function (result) {
             if (result instanceof ArrayBuffer) {
@@ -46,7 +49,7 @@ const exportScene = (input: Object3D) => {
             animations: input.animations,
 
         }
-    )
+    )*/
 }
 
 function save( blob: Blob, filename: string ) {
@@ -125,36 +128,12 @@ type People = {
 const peoples: People[] = []
     , clips: Record<string, AnimationClip> = {}
     , glbLoader = new GLTFLoader()
-    , fbxLoader = new FBXLoader()
+
 
 
 let characterControls: CharacterControls
 
 
-
-export const createFBXMainCharacter = (camera: Camera, controls: OrbitControls, resolve: (ch: CharacterControls) => void) => {
-    fbxLoader.load('/models/man.fbx', model => {
-        model.traverse(obj => {
-            if ('isMesh' in obj && obj.isMesh)
-                obj.castShadow = true
-        })
-
-        model.rotateX(Math.PI)
-
-        const mixer = new AnimationMixer(model)
-        const animationsMap = new Map<animation.Action, AnimationAction>()
-        for (const anim of model.animations) {
-            if (anim.name != 'TPose')
-                animationsMap.set(anim.name as animation.Action, mixer.clipAction(anim))
-        }
-
-        characterControls = new CharacterControls(
-            model, mixer, animationsMap, controls, camera, 'idle'
-        )
-
-        resolve(characterControls)
-    })
-}
 
 
 const animationsMap = new Map<animation.Action, AnimationAction>()
@@ -168,10 +147,6 @@ export const createMainCharacter = async (camera: Camera, controls: OrbitControl
         if ('isMesh' in obj && obj.isMesh)
             obj.castShadow = true
     })
-
-
-    pos = model.children[0].children.find(it => it.type == 'Bone')!.position
-
 
     const mixer = new AnimationMixer(model)
 
@@ -187,14 +162,13 @@ export const createMainCharacter = async (camera: Camera, controls: OrbitControl
             ['braced_hang_drop', braced_hang_drop]
         ] as [animation.Action, string][])
         .map(async it => [
-            it[0], await fbxLoader.loadAsync(it[1])
+            it[0], (await glbLoader.loadAsync(it[1])) as unknown as Group
         ])
     )
 
     for (const anim of anims) {
+        debugger
         anim[1].animations[0].name = anim[0]
-        //console.log(anim[0], anim[1])
-        //model.animations.push(anim[1].animations[0])
         animationsMap.set(anim[0], mixer.clipAction(anim[1].animations[0]))
     }
 

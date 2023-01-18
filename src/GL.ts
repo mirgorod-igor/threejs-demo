@@ -41,8 +41,8 @@ renderer.shadowMap.enabled = true
 // CONTROLS
 const controls = new OrbitControls(camera, renderer.domElement)
 controls.enableDamping = true
-controls.minPolarAngle = degToRad(70)
-controls.maxPolarAngle = degToRad(80)// - 0.05
+//controls.minPolarAngle = degToRad(70)
+//controls.maxPolarAngle = degToRad(80)// - 0.05
 //controls.enableRotate = false
 controls.update()
 
