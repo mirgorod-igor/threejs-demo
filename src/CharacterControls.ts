@@ -5,11 +5,45 @@ import {LoopOnce} from 'three/src/constants'
 
 const SCALAR = 2.75
 
-const runningOnceAction: Partial<Record<animation.Action, boolean>> = {
-    braced_hang_drop: false,
-    idle_to_braced_hang: false,
-    jump: false
+const onceActions: animation.Action[] = [
+    'left_braced_hang_shimmy', 'right_braced_hang_shimmy', 'braced_hang_drop', 'idle_to_braced_hang', 'jump'
+]
+
+const runningOnceAction = onceActions.reduce((res, it) =>
+    ((res[it] = false), res)
+, {} as Partial<Record<animation.Action, boolean>>)
+
+const bracedHangShimmyDir: Partial<Record<animation.Action, number>> = {
+    left_braced_hang_shimmy: 1,
+    right_braced_hang_shimmy: -1
 }
+
+function directionOffset(keysPressed: Record<Wasd, boolean>) {
+    let directionOffset = 0 // w
+
+    if (keysPressed.w) {
+        if (keysPressed.a) {
+            directionOffset = Math.PI / 4 // w+a
+        } else if (keysPressed.d) {
+            directionOffset = -Math.PI / 4 // w+d
+        }
+    } else if (keysPressed.s) {
+        if (keysPressed.a) {
+            directionOffset = Math.PI / 4 + Math.PI / 2 // s+a
+        } else if (keysPressed.d) {
+            directionOffset = -Math.PI / 4 - Math.PI / 2 // s+d
+        } else {
+            directionOffset = Math.PI // s
+        }
+    } else if (keysPressed.a) {
+        directionOffset = Math.PI / 2
+    } else if (keysPressed.d) {
+        directionOffset = -Math.PI / 2
+    }
+
+    return directionOffset
+}
+
 
 export class CharacterControls {
 
@@ -22,7 +56,7 @@ export class CharacterControls {
     // temporary data
     walkDirection = new Vector3()
     rotateAngle = new Vector3(0, 1, 0)
-    rotateQuarternion = new Quaternion()
+    rotateQua = new Quaternion()
     cameraTarget = new Vector3()
 
     // constants
@@ -30,7 +64,7 @@ export class CharacterControls {
     runVelocity = 5 * SCALAR
     walkVelocity = 2 * SCALAR
 
-    private dirOffsetJump?: number
+    private fixDirOffset?: number
 
     constructor(
         private readonly _model: Group,
@@ -41,7 +75,7 @@ export class CharacterControls {
         private _currentAction: animation.Action
     ) {
         for (const [key, action] of _animationsMap) {
-            if (key == 'braced_hang_drop' || key == 'idle_to_braced_hang' || key == 'jump') {
+            if (onceActions.includes(key)) {
                 action.setLoop(LoopOnce, 1).clampWhenFinished = true
             }
             else {
@@ -75,29 +109,38 @@ export class CharacterControls {
         this.toggleRun = !this.toggleRun
     }
 
-    update(delta: number, keysPressed: any) {
+    update(delta: number, keysPressed: Record<Key, boolean>) {
         let nextAction = this._currentAction
 
         const isRunning = this.currentAction.isRunning()
 
-        if (runningOnceAction[this._currentAction]) {
+        if (runningOnceAction[nextAction]) {
 
             // если закончилась анимация
             if (!isRunning) {
-                // если был запрыг
+
+                // закончился запрыг
                 if (runningOnceAction.idle_to_braced_hang) {
                     this.#state = 'hanging'
                     nextAction = 'hanging_idle'
                 }
 
-                // если был спрыг
+                // закончился спрыг
                 if (runningOnceAction.braced_hang_drop) {
                     this.#state = 'ground'
                     nextAction = 'idle'
+                    this.fixDirOffset = undefined
                 }
+
+                // закончился движение влево/вправо
+                const isBracedHangShimmy = runningOnceAction.left_braced_hang_shimmy || runningOnceAction.right_braced_hang_shimmy
+                if (isBracedHangShimmy) {
+                    nextAction = 'hanging_idle'
+                }
+
                 // если был jump
                 if (runningOnceAction.jump)
-                    this.dirOffsetJump = undefined
+                    this.fixDirOffset = undefined
             }
 
             runningOnceAction[this._currentAction] = isRunning
@@ -116,10 +159,10 @@ export class CharacterControls {
                 nextAction = 'jump'
             }
 
-            keysPressed[SPACE] = false
+            keysPressed[' '] = false
         }
         else if (this.#state == 'ground') {
-            const directionPressed = DIRECTIONS.some(key => keysPressed[key] == true)
+            const directionPressed = DIRECTIONS.some(key => keysPressed[key])
             if (directionPressed && this.toggleRun) {
                 nextAction = 'running'
             }
@@ -130,16 +173,28 @@ export class CharacterControls {
                 nextAction = 'idle'
             }
         }
+        else if (this.#state == 'hanging') {
+
+            //if (nextAction == 'hanging_idle') {
+                nextAction = keysPressed.a
+                    ? 'left_braced_hang_shimmy'
+                    : keysPressed.d ? 'right_braced_hang_shimmy' : 'hanging_idle'
+            //
+            // }
+        }
 
         console.log(this._currentAction + ' => ' + nextAction, isRunning)
 
+        // PLAY
 
         if (this._currentAction != nextAction) {
             const current = this.currentAction
             const next = this.action(nextAction)!
             //next.setDuration(5)
+
             current.fadeOut(this.fadeDuration)
             next.reset().fadeIn(this.fadeDuration).play()
+
             if (nextAction in runningOnceAction)
                 runningOnceAction[nextAction] = true
 
@@ -148,21 +203,32 @@ export class CharacterControls {
 
         this._mixer.update(delta)
 
+        // MOVE
 
-        if (nextAction == 'running' || nextAction == 'walking' || nextAction == 'jump') {
-            // diagonal movement angle offset
-            let directionOffset = this.directionOffset(keysPressed)
+        if (this.#state == 'hanging') {
+            const vel = 0.03 * bracedHangShimmyDir[nextAction]!
+            if (!isNaN(vel)) {
+                this._model.position.x += vel
+                this.updateCameraTarget(vel, 0)
+            }
+        }
+        /*if (nextAction == 'idle_to_braced_hang') {
+            console.log({...this.currentAction.getMixer()})
+
+            this._model.position.y += 0.01
+        }*/
+        else if (nextAction == 'running' || nextAction == 'walking' || nextAction == 'jump') {
+            let dirOffset = directionOffset(keysPressed)
 
             if (runningOnceAction.jump) {
                 if (this.currentAction.time < 0.1) {
-                    if (this.dirOffsetJump == undefined) {
-                        this.dirOffsetJump = directionOffset
+                    if (this.fixDirOffset == undefined) {
+                        this.fixDirOffset = dirOffset
                     }
                 }
-                directionOffset = this.dirOffsetJump ?? directionOffset
+                dirOffset = this.fixDirOffset ?? dirOffset
                 //console.log(this.currentAction.getEffectiveTimeScale(), this.currentAction.time)
             }
-
 
             // calculate towards camera direction
             const angleYCameraDirection = Math.atan2(
@@ -171,20 +237,23 @@ export class CharacterControls {
             )
 
             // rotate model
-            this.rotateQuarternion.setFromAxisAngle(this.rotateAngle, angleYCameraDirection + directionOffset)
-            this._model.quaternion.rotateTowards(this.rotateQuarternion, 0.2)
+            this.rotateQua.setFromAxisAngle(this.rotateAngle, angleYCameraDirection + dirOffset)
+            this._model.quaternion.rotateTowards(this.rotateQua, 0.2)
 
             // calculate direction
             this._camera.getWorldDirection(this.walkDirection)
             this.walkDirection.y = 0
             this.walkDirection.normalize()
-            this.walkDirection.applyAxisAngle(this.rotateAngle, directionOffset)
+            this.walkDirection.applyAxisAngle(this.rotateAngle, dirOffset)
 
             // run/walk velocity
             //const velocity = (nextAction == 'running' || nextAction == 'running_jump')
             //    ? this.runVelocity : this.walkVelocity
             const velocity = nextAction == 'running'
-                ? this.runVelocity : nextAction == 'jump' ? this.runVelocity*1.2 : this.walkVelocity
+                ? this.runVelocity
+                : nextAction == 'jump'
+                    ? this.runVelocity*1.2
+                    : this.walkVelocity
 
 
             // move model & camera
@@ -196,6 +265,8 @@ export class CharacterControls {
 
             this.updateCameraTarget(moveX, moveZ)
         }
+
+        //console.log(this._model.position)
     }
 
     private updateCameraTarget(moveX: number, moveZ: number) {
@@ -211,29 +282,4 @@ export class CharacterControls {
         this._controls.target = this.cameraTarget
     }
 
-    private directionOffset(keysPressed: any) {
-        let directionOffset = 0 // w
-
-        if (keysPressed[W]) {
-            if (keysPressed[A]) {
-                directionOffset = Math.PI / 4 // w+a
-            } else if (keysPressed[D]) {
-                directionOffset = -Math.PI / 4 // w+d
-            }
-        } else if (keysPressed[S]) {
-            if (keysPressed[A]) {
-                directionOffset = Math.PI / 4 + Math.PI / 2 // s+a
-            } else if (keysPressed[D]) {
-                directionOffset = -Math.PI / 4 - Math.PI / 2 // s+d
-            } else {
-                directionOffset = Math.PI // s
-            }
-        } else if (keysPressed[A]) {
-            directionOffset = Math.PI / 2 // a
-        } else if (keysPressed[D]) {
-            directionOffset = -Math.PI / 2 // d
-        }
-
-        return directionOffset
-    }
 }

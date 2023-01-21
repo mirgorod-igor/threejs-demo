@@ -18,6 +18,8 @@ import man from './assets/models/man.glb?url'
 import idle_to_braced_hang from './assets/models/idle_to_braced_hang.glb?url'
 import hanging_idle from './assets/models/hanging_idle.glb?url'
 import braced_hang_drop from './assets/models/braced_hang_drop.glb?url'
+import left_braced_hang_shimmy from './assets/models/left_braced_hang_shimmy.glb?url'
+import right_braced_hang_shimmy from './assets/models/right_braced_hang_shimmy.glb?url'
 
 import idle from './assets/models/idle.glb?url'
 import running from './assets/models/running.glb?url'
@@ -159,7 +161,9 @@ export const createMainCharacter = async (camera: Camera, controls: OrbitControl
             ['walking', walking],
             ['idle_to_braced_hang', idle_to_braced_hang],
             ['hanging_idle', hanging_idle],
-            ['braced_hang_drop', braced_hang_drop]
+            ['braced_hang_drop', braced_hang_drop],
+            ['left_braced_hang_shimmy', left_braced_hang_shimmy],
+            ['right_braced_hang_shimmy', right_braced_hang_shimmy],
         ] as [animation.Action, string][])
         .map(async it => [
             it[0], (await glbLoader.loadAsync(it[1])) as unknown as Group
@@ -167,7 +171,6 @@ export const createMainCharacter = async (camera: Camera, controls: OrbitControl
     )
 
     for (const anim of anims) {
-        debugger
         anim[1].animations[0].name = anim[0]
         animationsMap.set(anim[0], mixer.clipAction(anim[1].animations[0]))
     }

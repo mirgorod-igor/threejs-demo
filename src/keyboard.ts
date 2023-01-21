@@ -4,7 +4,7 @@ export const W = 'w'
     , D = 'd'
     , SPACE = ' '
     , SHIFT = 'shift'
-    , DIRECTIONS = [W, A, S, D]
+    , DIRECTIONS: Wasd[] = ['w', 'a', 's', 'd']
 /*
 export class KeyDisplay {
 
