@@ -83,19 +83,20 @@ function createLight(target: Object3D) {
 
 
 // CONTROL KEYS
-const keysPressed = {}
+const keyPressed: KeyPressed = {}
+
 //const keyDisplayQueue = new KeyDisplay();
 document.addEventListener('keydown', (event) => {
     //keyDisplayQueue.down(event.key)
     if (event.shiftKey && characterControls) {
         characterControls.switchRunToggle()
     } else {
-        (keysPressed as any)[event.key.toLowerCase()] = true
+        (keyPressed as any)[event.key.toLowerCase()] = true
     }
 }, false)
 document.addEventListener('keyup', (event) => {
     //keyDisplayQueue.up(event.key);
-    (keysPressed as any)[event.key.toLowerCase()] = false
+    (keyPressed as any)[event.key.toLowerCase()] = false
 }, false)
 
 let characterControls = await createMainCharacter(camera, controls)
@@ -129,7 +130,7 @@ const objects: any[] = []
 const clock = new Clock()
 function animate() {
     let mixerUpdateDelta = clock.getDelta()
-    characterControls?.update(mixerUpdateDelta, keysPressed)
+    characterControls?.update(mixerUpdateDelta, keyPressed)
     controls.update()
     lightObj.update()
 

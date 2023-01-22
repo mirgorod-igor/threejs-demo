@@ -1,24 +1,33 @@
 import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls'
 import {A, D, DIRECTIONS, S, SPACE, W} from './keyboard'
-import {AnimationAction, AnimationMixer, AnimationUtils, Camera, Group, LoopRepeat, Quaternion, Vector3} from 'three'
+import {AnimationAction, AnimationMixer, Camera, Group, LoopRepeat, Quaternion, Vector3} from 'three'
 import {LoopOnce} from 'three/src/constants'
+import BracedHangingShimmy = animation.BracedHangingShimmy
 
 const SCALAR = 2.75
 
 const onceActions: animation.Action[] = [
-    'left_braced_hang_shimmy', 'right_braced_hang_shimmy', 'braced_hang_drop', 'idle_to_braced_hang', 'jump'
+    'jump', 'idle_to_braced_hang',
+    'left_braced_hang_shimmy', 'right_braced_hang_shimmy',
+    'braced_to_free_hang', 'free_hang_to_braced',
+    'braced_hang_drop'
 ]
 
 const runningOnceAction = onceActions.reduce((res, it) =>
     ((res[it] = false), res)
 , {} as Partial<Record<animation.Action, boolean>>)
 
-const bracedHangShimmyDir: Partial<Record<animation.Action, number>> = {
+const bracedHangShimmyDir: Partial<Record<animation.BracedHangingShimmy, number>> = {
     left_braced_hang_shimmy: 1,
     right_braced_hang_shimmy: -1
 }
 
-function directionAngle(keysPressed: Record<Wasd, boolean>) {
+const freeHangShimmyDir: Partial<Record<animation.BracedHangingShimmy, number>> = {
+    left_braced_hang_shimmy: 1,
+    right_braced_hang_shimmy: -1
+}
+
+function directionAngle(keysPressed: KeyPressed) {
     let angle = 0 // w
 
     if (keysPressed.w) {
@@ -109,7 +118,7 @@ export class CharacterControls {
         this.toggleRun = !this.toggleRun
     }
 
-    update(delta: number, keysPressed: Record<Key, boolean>) {
+    update(delta: number, keyPressed: KeyPressed) {
         let nextAction = this._currentAction
 
         const isRunning = this.currentAction.isRunning()
@@ -122,8 +131,20 @@ export class CharacterControls {
                 // закончился запрыг
                 if (runningOnceAction.idle_to_braced_hang) {
                     this.#state = 'hanging'
-                    nextAction = 'hanging_idle'
+                    nextAction = 'braced_hanging_idle'
                 }
+
+                // закончился переход braced в free
+                if (runningOnceAction.braced_to_free_hang) {
+                    this.#state = 'hanging'
+                    nextAction = 'free_hanging_idle'
+                }
+                // закончился переход free в braced
+                if (runningOnceAction.free_hang_to_braced) {
+                    this.#state = 'hanging'
+                    nextAction = 'braced_hanging_idle'
+                }
+
 
                 // закончился спрыг
                 if (runningOnceAction.braced_hang_drop) {
@@ -135,7 +156,7 @@ export class CharacterControls {
                 // закончился движение влево/вправо
                 const isBracedHangShimmy = runningOnceAction.left_braced_hang_shimmy || runningOnceAction.right_braced_hang_shimmy
                 if (isBracedHangShimmy) {
-                    nextAction = 'hanging_idle'
+                    nextAction = 'braced_hanging_idle'
                 }
 
                 // если был jump
@@ -145,7 +166,7 @@ export class CharacterControls {
 
             runningOnceAction[this._currentAction] = isRunning
         }
-        else if (keysPressed[SPACE]) {
+        else if (keyPressed[SPACE]) {
             console.log('pressed space')
 
             if (nextAction == 'idle') {
@@ -159,10 +180,10 @@ export class CharacterControls {
                 nextAction = 'jump'
             }
 
-            keysPressed[' '] = false
+            keyPressed[' '] = false
         }
         else if (this.#state == 'ground') {
-            const directionPressed = DIRECTIONS.some(key => keysPressed[key])
+            const directionPressed = DIRECTIONS.some(key => keyPressed[key])
             if (directionPressed && this.toggleRun) {
                 nextAction = 'running'
             }
@@ -174,13 +195,19 @@ export class CharacterControls {
             }
         }
         else if (this.#state == 'hanging') {
-
-            //if (nextAction == 'hanging_idle') {
-                nextAction = keysPressed.a
+debugger
+            if (nextAction == 'braced_hanging_idle') {
+                nextAction = keyPressed.a
                     ? 'left_braced_hang_shimmy'
-                    : keysPressed.d ? 'right_braced_hang_shimmy' : 'hanging_idle'
-            //
-            // }
+                    : keyPressed.d ? 'right_braced_hang_shimmy'
+                        : keyPressed.s ? 'braced_to_free_hang' : nextAction
+            }
+            else if (nextAction == 'free_hanging_idle') {
+                nextAction = keyPressed.a
+                    ? 'left_braced_hang_shimmy'
+                    : keyPressed.d ? 'right_braced_hang_shimmy'
+                        : keyPressed.w ? 'free_hang_to_braced' : nextAction
+            }
         }
 
         console.log(this._currentAction + ' => ' + nextAction, isRunning)
@@ -206,21 +233,27 @@ export class CharacterControls {
         // 3) MOVE
 
         if (this.#state == 'hanging') {
-            const vel = bracedHangShimmyDir[nextAction]!
-            if (!isNaN(vel)) {
-                this._model.getWorldDirection(this.walkDirection)
-                this.walkDirection.y = 0
-                this.walkDirection.normalize()
-                this.walkDirection.applyAxisAngle(this.rotateAngle, Math.PI/2)
+            if (nextAction == 'braced_hanging_idle') {
 
-                const moveX = this.walkDirection.x * vel * delta
-                const moveZ = this.walkDirection.z * vel * delta
-
-                this._model.position.x += moveX
-                this._model.position.z += moveZ
-
-                this.updateCameraTarget(moveX, moveZ)
             }
+            else {
+                const vel = bracedHangShimmyDir[nextAction as BracedHangingShimmy]!
+                if (!isNaN(vel)) {
+                    this._model.getWorldDirection(this.walkDirection)
+                    this.walkDirection.y = 0
+                    this.walkDirection.normalize()
+                    this.walkDirection.applyAxisAngle(this.rotateAngle, Math.PI / 2)
+
+                    const moveX = this.walkDirection.x * vel * delta
+                    const moveZ = this.walkDirection.z * vel * delta
+
+                    this._model.position.x += moveX
+                    this._model.position.z += moveZ
+
+                    this.updateCameraTarget(moveX, moveZ)
+                }
+            }
+
         }
         /*if (nextAction == 'idle_to_braced_hang') {
             console.log({...this.currentAction.getMixer()})
@@ -228,7 +261,7 @@ export class CharacterControls {
             this._model.position.y += 0.01
         }*/
         else if (nextAction == 'running' || nextAction == 'walking' || nextAction == 'jump') {
-            let dirAngle = directionAngle(keysPressed)
+            let dirAngle = directionAngle(keyPressed)
 
             if (runningOnceAction.jump) {
                 if (this.currentAction.time < 0.1) {

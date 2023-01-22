@@ -15,11 +15,17 @@ import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls'
 
 
 import man from './assets/models/man.glb?url'
+
 import idle_to_braced_hang from './assets/models/idle_to_braced_hang.glb?url'
 import hanging_idle from './assets/models/hanging_idle.glb?url'
 import braced_hang_drop from './assets/models/braced_hang_drop.glb?url'
 import left_braced_hang_shimmy from './assets/models/left_braced_hang_shimmy.glb?url'
 import right_braced_hang_shimmy from './assets/models/right_braced_hang_shimmy.glb?url'
+import braced_to_free_hang from './assets/models/braced_to_free_hang.glb?url'
+
+import free_hanging_idle from './assets/models/free_hanging_idle.glb?url'
+import free_hang_to_braced from './assets/models/free_hang_to_braced.glb?url'
+
 
 import idle from './assets/models/idle.glb?url'
 import running from './assets/models/running.glb?url'
@@ -160,10 +166,13 @@ export const createMainCharacter = async (camera: Camera, controls: OrbitControl
             ['jump', jump],
             ['walking', walking],
             ['idle_to_braced_hang', idle_to_braced_hang],
-            ['hanging_idle', hanging_idle],
+            ['braced_hanging_idle', hanging_idle],
             ['braced_hang_drop', braced_hang_drop],
             ['left_braced_hang_shimmy', left_braced_hang_shimmy],
             ['right_braced_hang_shimmy', right_braced_hang_shimmy],
+            ['braced_to_free_hang', braced_to_free_hang],
+            ['free_hanging_idle', free_hanging_idle],
+            ['free_hang_to_braced', free_hang_to_braced]
         ] as [animation.Action, string][])
         .map(async it => [
             it[0], (await glbLoader.loadAsync(it[1])) as unknown as Group
