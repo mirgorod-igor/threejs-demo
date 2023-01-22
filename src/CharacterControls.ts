@@ -18,30 +18,30 @@ const bracedHangShimmyDir: Partial<Record<animation.Action, number>> = {
     right_braced_hang_shimmy: -1
 }
 
-function directionOffset(keysPressed: Record<Wasd, boolean>) {
-    let directionOffset = 0 // w
+function directionAngle(keysPressed: Record<Wasd, boolean>) {
+    let angle = 0 // w
 
     if (keysPressed.w) {
         if (keysPressed.a) {
-            directionOffset = Math.PI / 4 // w+a
+            angle = Math.PI / 4 // w+a
         } else if (keysPressed.d) {
-            directionOffset = -Math.PI / 4 // w+d
+            angle = -Math.PI / 4 // w+d
         }
     } else if (keysPressed.s) {
         if (keysPressed.a) {
-            directionOffset = Math.PI / 4 + Math.PI / 2 // s+a
+            angle = Math.PI / 4 + Math.PI / 2 // s+a
         } else if (keysPressed.d) {
-            directionOffset = -Math.PI / 4 - Math.PI / 2 // s+d
+            angle = -Math.PI / 4 - Math.PI / 2 // s+d
         } else {
-            directionOffset = Math.PI // s
+            angle = Math.PI // s
         }
     } else if (keysPressed.a) {
-        directionOffset = Math.PI / 2
+        angle = Math.PI / 2
     } else if (keysPressed.d) {
-        directionOffset = -Math.PI / 2
+        angle = -Math.PI / 2
     }
 
-    return directionOffset
+    return angle
 }
 
 
@@ -203,13 +203,23 @@ export class CharacterControls {
 
         this._mixer.update(delta)
 
-        // MOVE
+        // 3) MOVE
 
         if (this.#state == 'hanging') {
-            const vel = 0.03 * bracedHangShimmyDir[nextAction]!
+            const vel = bracedHangShimmyDir[nextAction]!
             if (!isNaN(vel)) {
-                this._model.position.x += vel
-                this.updateCameraTarget(vel, 0)
+                this._model.getWorldDirection(this.walkDirection)
+                this.walkDirection.y = 0
+                this.walkDirection.normalize()
+                this.walkDirection.applyAxisAngle(this.rotateAngle, Math.PI/2)
+
+                const moveX = this.walkDirection.x * vel * delta
+                const moveZ = this.walkDirection.z * vel * delta
+
+                this._model.position.x += moveX
+                this._model.position.z += moveZ
+
+                this.updateCameraTarget(moveX, moveZ)
             }
         }
         /*if (nextAction == 'idle_to_braced_hang') {
@@ -218,15 +228,15 @@ export class CharacterControls {
             this._model.position.y += 0.01
         }*/
         else if (nextAction == 'running' || nextAction == 'walking' || nextAction == 'jump') {
-            let dirOffset = directionOffset(keysPressed)
+            let dirAngle = directionAngle(keysPressed)
 
             if (runningOnceAction.jump) {
                 if (this.currentAction.time < 0.1) {
                     if (this.fixDirOffset == undefined) {
-                        this.fixDirOffset = dirOffset
+                        this.fixDirOffset = dirAngle
                     }
                 }
-                dirOffset = this.fixDirOffset ?? dirOffset
+                dirAngle = this.fixDirOffset ?? dirAngle
                 //console.log(this.currentAction.getEffectiveTimeScale(), this.currentAction.time)
             }
 
@@ -236,15 +246,17 @@ export class CharacterControls {
                 (this._model.position.z - this._camera.position.z)
             )
 
+            //console.log('angleY cam dir', angleYCameraDirection)
+
             // rotate model
-            this.rotateQua.setFromAxisAngle(this.rotateAngle, angleYCameraDirection + dirOffset)
+            this.rotateQua.setFromAxisAngle(this.rotateAngle, angleYCameraDirection + dirAngle)
             this._model.quaternion.rotateTowards(this.rotateQua, 0.2)
 
             // calculate direction
             this._camera.getWorldDirection(this.walkDirection)
             this.walkDirection.y = 0
             this.walkDirection.normalize()
-            this.walkDirection.applyAxisAngle(this.rotateAngle, dirOffset)
+            this.walkDirection.applyAxisAngle(this.rotateAngle, dirAngle)
 
             // run/walk velocity
             //const velocity = (nextAction == 'running' || nextAction == 'running_jump')
