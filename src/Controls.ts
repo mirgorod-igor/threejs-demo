@@ -1,7 +1,5 @@
 import {PointerLockControls} from 'three/examples/jsm/controls/PointerLockControls'
 import {Camera, Vector3} from 'three'
-import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls'
-import {degToRad} from 'three/src/math/MathUtils'
 
 class Controls {
     #velo = new Vector3()

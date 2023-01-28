@@ -88,11 +88,12 @@ const keyPressed: KeyPressed = {}
 //const keyDisplayQueue = new KeyDisplay();
 document.addEventListener('keydown', (event) => {
     //keyDisplayQueue.down(event.key)
-    if (event.shiftKey && characterControls) {
+    /*if (event.shiftKey && characterControls) {
         characterControls.switchRunToggle()
     } else {
         (keyPressed as any)[event.key.toLowerCase()] = true
-    }
+    }*/
+    keyPressed[event.key.toLowerCase() as Key] = true
 }, false)
 document.addEventListener('keyup', (event) => {
     //keyDisplayQueue.up(event.key);

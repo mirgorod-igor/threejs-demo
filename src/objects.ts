@@ -23,11 +23,14 @@ import left_braced_hang_shimmy from './assets/models/left_braced_hang_shimmy.glb
 import right_braced_hang_shimmy from './assets/models/right_braced_hang_shimmy.glb?url'
 import braced_to_free_hang from './assets/models/braced_to_free_hang.glb?url'
 
+
 import free_hanging_idle from './assets/models/free_hanging_idle.glb?url'
 import free_hang_to_braced from './assets/models/free_hang_to_braced.glb?url'
+import braced_hang_to_crouch from './assets/models/braced_hang_to_crouch.glb?url'
+import crouched_to_standing from './assets/models/crouched_to_standing.glb?url'
 
 
-import idle from './assets/models/idle.glb?url'
+import standing from './assets/models/standing.glb?url'
 import running from './assets/models/running.glb?url'
 import jump from './assets/models/jump.glb?url'
 import walking from './assets/models/walking.glb?url'
@@ -146,7 +149,6 @@ let characterControls: CharacterControls
 
 const animationsMap = new Map<animation.Action, AnimationAction>()
 
-let pos: Vector3
 
 export const createMainCharacter = async (camera: Camera, controls: OrbitControls) => {
     const model = (await glbLoader.loadAsync( man)).scene
@@ -161,7 +163,7 @@ export const createMainCharacter = async (camera: Camera, controls: OrbitControl
 
     const anims: [animation.Action, Group][] = await Promise.all(
         ([
-            ['idle', idle],
+            ['standing', standing],
             ['running', running],
             ['jump', jump],
             ['walking', walking],
@@ -172,7 +174,9 @@ export const createMainCharacter = async (camera: Camera, controls: OrbitControl
             ['right_braced_hang_shimmy', right_braced_hang_shimmy],
             ['braced_to_free_hang', braced_to_free_hang],
             ['free_hanging_idle', free_hanging_idle],
-            ['free_hang_to_braced', free_hang_to_braced]
+            ['free_hang_to_braced', free_hang_to_braced],
+            ['braced_hang_to_crouch', braced_hang_to_crouch],
+            ['crouched_to_standing', crouched_to_standing]
         ] as [animation.Action, string][])
         .map(async it => [
             it[0], (await glbLoader.loadAsync(it[1])) as unknown as Group
@@ -184,12 +188,10 @@ export const createMainCharacter = async (camera: Camera, controls: OrbitControl
         animationsMap.set(anim[0], mixer.clipAction(anim[1].animations[0]))
     }
 
-
     //exportScene(model)
 
-
     return characterControls = new CharacterControls(
-        model, mixer, animationsMap, controls, camera, 'idle'
+        model, mixer, animationsMap, controls, camera, 'standing'
     )
 }
 
