@@ -1,8 +1,24 @@
 import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls'
 import {A, D, DIRECTIONS, S, SPACE, W} from './keyboard'
-import {AnimationAction, AnimationMixer, Camera, Group, LoopRepeat, Quaternion, Vector3, Event} from 'three'
+import {
+    AnimationAction,
+    AnimationMixer,
+    Camera,
+    Group,
+    LoopRepeat,
+    Quaternion,
+    Vector3,
+    Event,
+    Raycaster,
+    Object3D, Intersection, Mesh, BufferGeometry, MeshPhongMaterial
+} from 'three'
 import {LoopOnce} from 'three/src/constants'
 import BracedHangingShimmy = animation.BracedHangingShimmy
+
+
+
+type ChMesh = Mesh<BufferGeometry, MeshPhongMaterial>
+
 
 const FADE_DURATION = 0.2
 
@@ -69,6 +85,10 @@ function directionAngle(keysPressed: KeyPressed) {
 
 const xyz = new Vector3(1, 1, 1)
 export class CharacterControls {
+
+    private raycaster = new Raycaster(
+        new Vector3(), new Vector3(0, 0, 0), 0, 2.15
+    )
 
     // state
     #state: animation.State = 'standing'
@@ -153,11 +173,14 @@ export class CharacterControls {
         return this._animationsMap.get(name)!
     }
 
+    private intersections: Intersection<ChMesh>[] = []
+    private newPos = new Vector3()
 
-    update(delta: number, keyPressed: KeyPressed) {
+    update(delta: number, keyPressed: KeyPressed, objects: Mesh[]) {
         let nextAction = this._currentAction
 
         const isRunning = this.currentAction.isRunning()
+
 
         // STATE
 
@@ -377,16 +400,72 @@ export class CharacterControls {
             const moveX = this.walkDirection.x * velocity * delta
             const moveZ = this.walkDirection.z * velocity * delta
 
-            this._model.position.x += moveX
-            this._model.position.z += moveZ
 
-            this.updateCameraTarget(moveX, moveZ)
+
+            // ПЕРЕСЕЧЕНИЕ
+
+            this.raycaster.ray.origin.copy(this._model.position)
+            this.raycaster.ray.direction.copy(this.walkDirection)
+
+            const intersections = this.raycaster.intersectObjects<ChMesh>(objects, false)
+
+            for (const i of this.intersections) {
+                // если больше не пересекает, восстанавливаем цвет
+                const {emissive} = i.object.material
+                if (emissive.origHex) {
+                    console.log(i.object.name + ': restore color')
+                    emissive.setHex(0)
+                    emissive.origHex = false
+                }
+            }
+
+            this.intersections = intersections
+
+            // красим пересечения
+            for (const i of intersections) {
+                const {emissive} = i.object.material
+                emissive.origHex = true
+                emissive.setHex(0xff0000)
+                console.log(i.object.name + ': set color')
+            }
+
+            // определяем возможность идти
+
+            this.newPos.copy(this._model.position)
+            this.newPos.x += moveX
+            this.newPos.z += moveZ
+
+            this.raycaster.ray.origin.copy(this.newPos)
+            // если по новым координатам нету прежних пересечений
+            for (let i = 0; i < intersections.length; i++) {
+                const intsec = intersections[i]
+                const newIntsec = this.raycaster.intersectObject<ChMesh>(intsec.object, false)
+                if (!newIntsec?.length) {
+                    intersections.splice(i, 1)
+                    i--
+                }
+                // если увеличилась дистанция, значит удаляемся
+                /*else if (newIntsec[0].distance > intsec.distance) {
+                    intsec.distance = newIntsec[0].distance
+                }*/
+            }
+
+
+
+            if (intersections.length == 0) {
+
+                this._model.position.x += moveX
+                this._model.position.z += moveZ
+                this.updateCameraTarget(moveX, moveZ)
+            }
+
         }
 
         //console.log('posY', this._model.position.y)
         if (this._currentAction == 'braced_hang_to_crouch') {
 
         }
+
 
 
 

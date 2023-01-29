@@ -1,14 +1,13 @@
 import {
     AnimationAction,
     AnimationClip,
-    AnimationMixer,
-    BufferGeometry, Camera, Color, Float32BufferAttribute, Group, Mesh, MeshBasicMaterial,
+    AnimationMixer, BoxGeometry,
+    BufferGeometry, Camera, Color, Float32BufferAttribute, Group, Mesh, MeshBasicMaterial, MeshPhongMaterial,
     Object3D,
     PlaneGeometry,
     Scene,
     Vector3
 } from 'three'
-import {degToRad} from 'three/src/math/MathUtils'
 import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader'
 import {CharacterControls} from './CharacterControls'
 import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls'
@@ -123,14 +122,41 @@ const floorMaterial = new MeshBasicMaterial({vertexColors: true})
 const floor = new Mesh(floorGeometry, floorMaterial)
 
 
-const peoplesConf = [
-    {
-        name: '62f67b583e172e00547ceab5',
-        //anims: ['standing_w_briefcase_idle'],
-        pos: [137, 0, 10],
-        rot: degToRad(180)
-    }
-]
+
+
+const boxGeometry = new BoxGeometry(5, 5, 5).toNonIndexed();
+
+position = boxGeometry.attributes.position;
+const colorsBox = [];
+
+for ( let i = 0, l = position.count; i < l; i ++ ) {
+    color.setHSL( Math.random() * 0.3 + 0.5, 0.75, Math.random() * 0.25 + 0.75 );
+    colorsBox.push( color.r, color.g, color.b );
+}
+
+boxGeometry.setAttribute( 'color', new Float32BufferAttribute( colorsBox, 3 ) );
+
+export const objects: Mesh[] = []
+
+
+for (let i = 0; i < 500; i++) {
+    const mat = new MeshPhongMaterial({
+        specular: 0xffffff, flatShading: true, vertexColors: true
+    })
+
+    mat.color.setHSL (
+        Math.random() * 0.2 + 0.5, 0.75, Math.random() * 0.25 + 0.75
+    )
+
+    const box = new Mesh(boxGeometry, mat)
+    box.position.x = Math.floor( Math.random() * 20 - 10 ) * 5
+    box.position.y = Math.floor( Math.random() * 20 ) * 20 + 2.5
+    box.position.z = Math.floor( Math.random() * 20 - 10 ) * 5
+    box.name = 'box'+(10000*box.position.x + 1000*box.position.z)
+
+    objects.push(box)
+}
+
 
 
 type People = {
@@ -203,6 +229,9 @@ export const createMainCharacter = async (camera: Camera, controls: OrbitControl
 }
 
 export function load(scene: Scene, camera: Camera, controls: OrbitControls) {
+    for (const o of objects) {
+        scene.add(o)
+    }
     scene.add(floor)
 }
 

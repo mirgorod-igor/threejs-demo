@@ -125,13 +125,12 @@ function onWindowResize() {
 window.addEventListener('resize', onWindowResize)
 
 
-const objects: any[] = []
 
 
 const clock = new Clock()
 function animate() {
     let mixerUpdateDelta = clock.getDelta()
-    characterControls?.update(mixerUpdateDelta, keyPressed)
+    characterControls?.update(mixerUpdateDelta, keyPressed, objs.objects)
     controls.update()
     lightObj.update()
 
