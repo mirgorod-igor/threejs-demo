@@ -1,8 +1,10 @@
 import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls'
 import {A, D, DIRECTIONS, S, SPACE, W} from './keyboard'
-import {AnimationAction, AnimationMixer, Camera, Group, LoopRepeat, Quaternion, Vector3} from 'three'
+import {AnimationAction, AnimationMixer, Camera, Group, LoopRepeat, Quaternion, Vector3, Event} from 'three'
 import {LoopOnce} from 'three/src/constants'
 import BracedHangingShimmy = animation.BracedHangingShimmy
+
+const FADE_DURATION = 0.2
 
 
 
@@ -14,8 +16,10 @@ const animationY: Partial<Record<animation.Action, [number, number, number]>> = 
 const SCALE = 2.75
 
 const onceActions: animation.Action[] = [
+    'start_walking',
     'jump', 'idle_to_braced_hang',
     'left_braced_hang_shimmy', 'right_braced_hang_shimmy',
+    'braced_hang_hop_left', 'braced_hang_hop_right',
     'braced_to_free_hang', 'free_hang_to_braced',
     'braced_hang_drop', 'braced_hang_to_crouch', 'crouched_to_standing'
 ]
@@ -26,8 +30,9 @@ const runningOnceAction = onceActions.reduce((res, it) =>
 
 const velAni: Partial<Record<animation.Action, number>> = {
     left_braced_hang_shimmy: 1,
-    right_braced_hang_shimmy: -1
-
+    right_braced_hang_shimmy: -1,
+    braced_hang_hop_left: 2,
+    braced_hang_hop_right: -2
 }
 
 const freeHangShimmyDir: Partial<Record<animation.BracedHangingShimmy, number>> = {
@@ -77,11 +82,12 @@ export class CharacterControls {
     cameraTarget = new Vector3()
 
     // constants
-    fadeDuration = 0.2
-    runVelocity = 5 * SCALE
+    runVelocity = 6 * SCALE
     walkVelocity = 2 * SCALE
 
     private fixDirOffset?: number
+
+    private _prevAction: animation.Action
 
     constructor(
         private readonly _model: Group,
@@ -91,6 +97,9 @@ export class CharacterControls {
         private readonly _camera: Camera,
         private _currentAction: animation.Action
     ) {
+        this._prevAction = _currentAction
+
+
         for (const [key, action] of _animationsMap) {
             if (onceActions.includes(key)) {
                 action.setLoop(LoopOnce, 1).clampWhenFinished = true
@@ -152,10 +161,28 @@ export class CharacterControls {
 
         // STATE
 
-        if (runningOnceAction[nextAction]) {
+        const directionPressed = DIRECTIONS.some(key => keyPressed[key])
+
+        if (this.#state == 'standing' || this.#state == 'moving') {
+            this.#state = directionPressed ? 'moving' : 'standing'
+            nextAction = directionPressed
+                ? keyPressed.shift ? 'running' : 'walking'//nextAction != 'walking' ? 'start_walking' : nextAction
+                : 'standing'
+        }
+
+        if (runningOnceAction[this._currentAction]) {
+
+            const weight = Math.trunc(this.currentAction.getEffectiveWeight())
 
             // если закончилась анимация
             if (!isRunning) {
+
+
+                // закончился ...
+                /*if (runningOnceAction.start_walking) {
+                    //this.#state = 'hanging'
+                    nextAction = this.#state == 'moving' ? 'walking' : 'standing'
+                }*/
 
                 // закончился запрыг
                 if (runningOnceAction.idle_to_braced_hang) {
@@ -168,6 +195,7 @@ export class CharacterControls {
                     this.#state = 'hanging'
                     nextAction = 'free_hanging_idle'
                 }
+
                 // закончился переход free в braced
                 if (runningOnceAction.free_hang_to_braced) {
                     this.#state = 'hanging'
@@ -200,11 +228,17 @@ export class CharacterControls {
                     nextAction = 'braced_hanging_idle'
                 }
 
+                const isBracedHangHop = runningOnceAction.braced_hang_hop_left || runningOnceAction.braced_hang_hop_right
+                if (isBracedHangHop) {
+                    nextAction = 'braced_hanging_idle'
+                }
+
                 // если был jump
                 if (runningOnceAction.jump)
                     this.fixDirOffset = undefined
             }
 
+            console.log((isRunning ? '    running ' : '    finished ') + weight)
             runningOnceAction[this._currentAction] = isRunning
         }
         else if (keyPressed[' ']) {
@@ -223,19 +257,15 @@ export class CharacterControls {
 
             keyPressed[' '] = false
         }
-        else if (this.#state == 'standing') {
-            const directionPressed = DIRECTIONS.some(key => keyPressed[key])
-            nextAction = !directionPressed
-                ? 'standing'
-                : keyPressed.shift ? 'running' : 'walking'
-        }
+
         else if (this.#state == 'hanging') {
             if (nextAction == 'braced_hanging_idle') {
                 nextAction = keyPressed.w
                     ? 'braced_hang_to_crouch' : keyPressed.a
-                        ? 'left_braced_hang_shimmy'
+                        ? keyPressed.shift
+                            ? 'braced_hang_hop_left' : 'left_braced_hang_shimmy'
                         : keyPressed.d
-                            ? 'right_braced_hang_shimmy'
+                            ? keyPressed.shift ? 'braced_hang_hop_right' : 'right_braced_hang_shimmy'
                             : keyPressed.s
                                 ? keyPressed.shift
                                     ? 'braced_to_free_hang' : 'braced_hang_drop'
@@ -249,44 +279,15 @@ export class CharacterControls {
             }
         }
 
-        //console.log(this._currentAction + ' => ' + nextAction, isRunning)
+        console.log(`${this.#state} : ${this._currentAction} (${isRunning}) => ${nextAction}`)
 
-        // PLAY
+        // 2) MOVE
 
-        if (this._currentAction != nextAction) {
-            const current = this.currentAction
-            const next = this.action(nextAction)!
-            //next.setDuration(5)
-
-            current.fadeOut(
-                this._currentAction == 'crouched_to_standing' ? 0 : this.fadeDuration
-            )
-
-            next.reset()
-                .fadeIn(this.fadeDuration)
-                .play()
-            //if (nextAction == 'braced_hang_to_crouch')
-            //    next.setDuration(3)
-
-
-
-
-            if (nextAction in runningOnceAction)
-                runningOnceAction[nextAction] = true
-        }
-
-        // 3) MOVE
-
-        /*if (nextAction == 'braced_hang_to_crouch') {
-            this._controls.target.y += 0.016
-            this._camera.position.y += 0.016
-        }*/
-
-        if (nextAction == 'standing') {
-            if (this._currentAction == 'crouched_to_standing') {
-                const currVals = this._animationsMap.get('crouched_to_standing')!.getClip().tracks[0].values
+        if (nextAction == 'crouched_to_standing') {
+            if (this._currentAction == 'braced_hang_to_crouch') {
+                const currVals = this.currentAction.getClip().tracks[0].values
                 const xOffset = currVals[currVals.length-3]
-                    , yOffset = currVals[currVals.length-2]-1
+                    , yOffset = currVals[currVals.length-2]-0.5
                     , zOffset = currVals[currVals.length-1]
 
                 this._model.translateZ(zOffset * SCALE);
@@ -303,10 +304,6 @@ export class CharacterControls {
 
                 this.updateCameraTarget(0, moveZ)
             }
-        }
-
-        if (nextAction == 'standing') {
-
         }
         else if (this.#state == 'hanging') {
             if (nextAction == 'braced_hanging_idle') {
@@ -335,7 +332,7 @@ export class CharacterControls {
 
             this._model.position.y += 0.01
         }*/
-        else if (nextAction == 'running' || nextAction == 'walking' || nextAction == 'jump') {
+        else if (this.#state == 'moving' || nextAction == 'jump') {
             let dirAngle = directionAngle(keyPressed)
 
             if (runningOnceAction.jump) {
@@ -373,7 +370,7 @@ export class CharacterControls {
                 ? this.runVelocity
                 : nextAction == 'jump'
                     ? this.runVelocity*1.2
-                    : this.walkVelocity
+                    : nextAction == 'start_walking' ? SCALE / 1.2 : this.walkVelocity
 
 
             // move model & camera
@@ -386,12 +383,49 @@ export class CharacterControls {
             this.updateCameraTarget(moveX, moveZ)
         }
 
-        console.log('posY', this._model.position.y)
+        //console.log('posY', this._model.position.y)
         if (this._currentAction == 'braced_hang_to_crouch') {
 
         }
 
-        this._currentAction = nextAction
+
+
+        // 3) PLAY
+
+        if (this._currentAction != nextAction) {
+            const current = this.currentAction
+            const next = this.action(nextAction)!
+            //next.setDuration(5)
+
+            next.reset()
+            //if (!(this._currentAction in runningOnceAction))
+
+
+            const fade = this._currentAction == 'braced_hang_to_crouch' ? 0 : FADE_DURATION
+            current.crossFadeTo(next, fade, true)
+
+            if (nextAction == 'braced_hang_to_crouch')
+                next.setDuration(2)
+            else if (nextAction == 'crouched_to_standing')
+                next.setDuration(0.8)
+
+            next.play()
+            //if (nextAction == 'braced_hang_to_crouch')
+            //    next.setDuration(3)
+            if (nextAction == 'start_walking')
+                next.setDuration(2.4)
+
+
+            if (nextAction in runningOnceAction)
+                runningOnceAction[nextAction] = true
+
+            this._prevAction = this._currentAction
+            this._currentAction = nextAction
+        }
+
+        /*if (this._prevAction == 'crouched_to_standing' && this._currentAction == 'standing') {
+            this.currentAction.syncWith(this._animationsMap.get('crouched_to_standing')!)
+        }*/
 
         this._mixer.update(delta)
     }

@@ -19,6 +19,9 @@ import man from './assets/models/man.glb?url'
 import idle_to_braced_hang from './assets/models/idle_to_braced_hang.glb?url'
 import hanging_idle from './assets/models/hanging_idle.glb?url'
 import braced_hang_drop from './assets/models/braced_hang_drop.glb?url'
+import braced_hang_hop_left from './assets/models/braced_hang_hop_left.glb?url'
+import braced_hang_hop_right from './assets/models/braced_hang_hop_right.glb?url'
+
 import left_braced_hang_shimmy from './assets/models/left_braced_hang_shimmy.glb?url'
 import right_braced_hang_shimmy from './assets/models/right_braced_hang_shimmy.glb?url'
 import braced_to_free_hang from './assets/models/braced_to_free_hang.glb?url'
@@ -33,6 +36,7 @@ import crouched_to_standing from './assets/models/crouched_to_standing.glb?url'
 import standing from './assets/models/standing.glb?url'
 import running from './assets/models/running.glb?url'
 import jump from './assets/models/jump.glb?url'
+import start_walking from './assets/models/start_walking.glb?url'
 import walking from './assets/models/walking.glb?url'
 
 import {OBJExporter} from 'three/examples/jsm/exporters/OBJExporter'
@@ -166,10 +170,13 @@ export const createMainCharacter = async (camera: Camera, controls: OrbitControl
             ['standing', standing],
             ['running', running],
             ['jump', jump],
+            ['start_walking', start_walking],
             ['walking', walking],
             ['idle_to_braced_hang', idle_to_braced_hang],
             ['braced_hanging_idle', hanging_idle],
             ['braced_hang_drop', braced_hang_drop],
+            ['braced_hang_hop_left', braced_hang_hop_left],
+            ['braced_hang_hop_right', braced_hang_hop_right],
             ['left_braced_hang_shimmy', left_braced_hang_shimmy],
             ['right_braced_hang_shimmy', right_braced_hang_shimmy],
             ['braced_to_free_hang', braced_to_free_hang],
