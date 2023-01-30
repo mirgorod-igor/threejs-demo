@@ -100,7 +100,9 @@ document.addEventListener('keyup', (event) => {
     (keyPressed as any)[event.key.toLowerCase()] = false
 }, false)
 
-let characterControls = await createMainCharacter(camera, controls)
+let characterControls = await createMainCharacter(
+    camera, controls
+)
 
 scene.add(characterControls.object)
 

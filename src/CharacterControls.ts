@@ -10,7 +10,7 @@ import {
     Vector3,
     Event,
     Raycaster,
-    Object3D, Intersection, Mesh, BufferGeometry, MeshPhongMaterial
+    Object3D, Intersection, Mesh, BufferGeometry, MeshPhongMaterial, Box3, Box3Helper, Color, BufferAttribute
 } from 'three'
 import {LoopOnce} from 'three/src/constants'
 import BracedHangingShimmy = animation.BracedHangingShimmy
@@ -84,11 +84,18 @@ function directionAngle(keysPressed: KeyPressed) {
 
 
 const xyz = new Vector3(1, 1, 1)
+
+const COLLIDER_SIZE = new Vector3(2, 2, 2)
+const objectSize = new Vector3(5, 5, 5)
+const objectBounding = new Box3()
 export class CharacterControls {
 
     private raycaster = new Raycaster(
         new Vector3(), new Vector3(0, 0, 0), 0, 2.15
     )
+
+    private _collider = new Box3()
+    private _collHelper = new Box3Helper(this._collider, 0xFF0000)
 
     // state
     #state: animation.State = 'standing'
@@ -119,6 +126,11 @@ export class CharacterControls {
     ) {
         this._prevAction = _currentAction
 
+        this._collider.setFromCenterAndSize(
+            new Vector3(0, 2, 0),
+            COLLIDER_SIZE
+        )
+        _camera.parent!.add(this._collHelper)
 
         for (const [key, action] of _animationsMap) {
             if (onceActions.includes(key)) {
@@ -153,6 +165,7 @@ export class CharacterControls {
             }
         }
 
+
         this._model.scale.setScalar(SCALE)
         this._controls.minDistance = 10
         this._controls.maxDistance = 30
@@ -173,7 +186,7 @@ export class CharacterControls {
         return this._animationsMap.get(name)!
     }
 
-    private intersections: Intersection<ChMesh>[] = []
+    private intersections: ChMesh[] = []
     private newPos = new Vector3()
 
     update(delta: number, keyPressed: KeyPressed, objects: Mesh[]) {
@@ -400,33 +413,46 @@ export class CharacterControls {
             const moveX = this.walkDirection.x * velocity * delta
             const moveZ = this.walkDirection.z * velocity * delta
 
-
+            this._collider.setFromCenterAndSize(this._model.position, COLLIDER_SIZE)
 
             // ПЕРЕСЕЧЕНИЕ
 
-            this.raycaster.ray.origin.copy(this._model.position)
-            this.raycaster.ray.direction.copy(this.walkDirection)
-
-            const intersections = this.raycaster.intersectObjects<ChMesh>(objects, false)
-
             for (const i of this.intersections) {
                 // если больше не пересекает, восстанавливаем цвет
-                const {emissive} = i.object.material
+                const {emissive} = i.material
                 if (emissive.origHex) {
-                    console.log(i.object.name + ': restore color')
+                    console.log(i.name + ': restore color')
                     emissive.setHex(0)
                     emissive.origHex = false
                 }
             }
 
-            this.intersections = intersections
+            this.intersections.length = 0
+
+            // по текущему положению
+            const intersections: ChMesh[] = []
+            for (const m of objects) {
+                objectBounding.setFromCenterAndSize(m.position, objectSize)
+                if (this._collider.intersectsBox(objectBounding)) {
+                    intersections.push(m as ChMesh)
+                    this.intersections.push(m as ChMesh)
+                }
+            }
+
+
+            //this.raycaster.ray.origin.copy(this._model.position)
+            //this.raycaster.ray.direction.copy(this.walkDirection)
+
+
+            //const intersections = this.raycaster.intersectObjects<ChMesh>(objects, false)
+
 
             // красим пересечения
-            for (const i of intersections) {
-                const {emissive} = i.object.material
+            for (const mesh of intersections) {
+                const {emissive} = mesh.material
                 emissive.origHex = true
                 emissive.setHex(0xff0000)
-                console.log(i.object.name + ': set color')
+                console.log(mesh.name + ': set color')
             }
 
             // определяем возможность идти
@@ -435,25 +461,21 @@ export class CharacterControls {
             this.newPos.x += moveX
             this.newPos.z += moveZ
 
-            this.raycaster.ray.origin.copy(this.newPos)
+            this._collider.setFromCenterAndSize(this.newPos, COLLIDER_SIZE)
+            //this.raycaster.ray.origin.copy(this.newPos)
+
+
             // если по новым координатам нету прежних пересечений
             for (let i = 0; i < intersections.length; i++) {
                 const intsec = intersections[i]
-                const newIntsec = this.raycaster.intersectObject<ChMesh>(intsec.object, false)
-                if (!newIntsec?.length) {
+                objectBounding.setFromCenterAndSize(intsec.position, objectSize)
+                if (!this._collider.intersectsBox(objectBounding)) {
                     intersections.splice(i, 1)
                     i--
                 }
-                // если увеличилась дистанция, значит удаляемся
-                /*else if (newIntsec[0].distance > intsec.distance) {
-                    intsec.distance = newIntsec[0].distance
-                }*/
             }
 
-
-
             if (intersections.length == 0) {
-
                 this._model.position.x += moveX
                 this._model.position.z += moveZ
                 this.updateCameraTarget(moveX, moveZ)

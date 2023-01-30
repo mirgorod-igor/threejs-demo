@@ -149,10 +149,10 @@ for (let i = 0; i < 500; i++) {
     )
 
     const box = new Mesh(boxGeometry, mat)
-    box.position.x = Math.floor( Math.random() * 20 - 10 ) * 5
-    box.position.y = Math.floor( Math.random() * 20 ) * 20 + 2.5
-    box.position.z = Math.floor( Math.random() * 20 - 10 ) * 5
-    box.name = 'box'+(10000*box.position.x + 1000*box.position.z)
+    box.position.x = Math.floor(Math.random() * 20 - 10) * 5
+    box.position.y = Math.floor(Math.random() * 20) * 20 + 2.5
+    box.position.z = Math.floor(Math.random() * 20 - 10) * 5
+    box.name = 'box'+(1000*box.position.x + 100*box.position.z)
 
     objects.push(box)
 }
