@@ -1,5 +1,5 @@
 import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls'
-import {A, D, DIRECTIONS, S, SPACE, W} from './keyboard'
+import {DIRECTIONS} from './keyboard'
 import {
     AnimationAction,
     AnimationMixer,
@@ -8,9 +8,12 @@ import {
     LoopRepeat,
     Quaternion,
     Vector3,
-    Event,
     Raycaster,
-    Object3D, Intersection, Mesh, BufferGeometry, MeshPhongMaterial, Box3, Box3Helper, Color, BufferAttribute
+    Mesh,
+    BufferGeometry,
+    MeshPhongMaterial,
+    Box3,
+    Sphere, Spherical, SphereGeometry, MeshBasicMaterial, Box3Helper
 } from 'three'
 import {LoopOnce} from 'three/src/constants'
 import BracedHangingShimmy = animation.BracedHangingShimmy
@@ -94,8 +97,13 @@ export class CharacterControls {
         new Vector3(), new Vector3(0, 0, 0), 0, 2.15
     )
 
-    private _collider = new Box3()
-    private _collHelper = new Box3Helper(this._collider, 0xFF0000)
+    private _collider = new Sphere()
+    private _colliderHelper = new Mesh(
+        new SphereGeometry(2, 16, 8, Math.PI/4, Math.PI/2, 0, Math.PI/2),
+        new MeshBasicMaterial({ color: 0xffff00, wireframe: true })
+    )
+    private _colliderBox = new Box3()
+    private _colliderBoxHelper = new Box3Helper(this._colliderBox, 0xff0000)
 
     // state
     #state: animation.State = 'standing'
@@ -126,11 +134,8 @@ export class CharacterControls {
     ) {
         this._prevAction = _currentAction
 
-        this._collider.setFromCenterAndSize(
-            new Vector3(0, 2, 0),
-            COLLIDER_SIZE
-        )
-        _camera.parent!.add(this._collHelper)
+        _camera.parent!.add(this._colliderBoxHelper)
+
 
         for (const [key, action] of _animationsMap) {
             if (onceActions.includes(key)) {
@@ -413,72 +418,85 @@ export class CharacterControls {
             const moveX = this.walkDirection.x * velocity * delta
             const moveZ = this.walkDirection.z * velocity * delta
 
-            this._collider.setFromCenterAndSize(this._model.position, COLLIDER_SIZE)
-
-            // ПЕРЕСЕЧЕНИЕ
-
-            for (const i of this.intersections) {
-                // если больше не пересекает, восстанавливаем цвет
-                const {emissive} = i.material
-                if (emissive.origHex) {
-                    console.log(i.name + ': restore color')
-                    emissive.setHex(0)
-                    emissive.origHex = false
-                }
-            }
-
-            this.intersections.length = 0
-
-            // по текущему положению
-            const intersections: ChMesh[] = []
-            for (const m of objects) {
-                objectBounding.setFromCenterAndSize(m.position, objectSize)
-                if (this._collider.intersectsBox(objectBounding)) {
-                    intersections.push(m as ChMesh)
-                    this.intersections.push(m as ChMesh)
-                }
-            }
 
 
-            //this.raycaster.ray.origin.copy(this._model.position)
-            //this.raycaster.ray.direction.copy(this.walkDirection)
+            //COLLIDER_SIZE
+                //.set(1, 1, 1)
+                //.applyQuaternion(this.rotateQua)
+                //.set(2, 2, 2)
 
-
-            //const intersections = this.raycaster.intersectObjects<ChMesh>(objects, false)
-
-
-            // красим пересечения
-            for (const mesh of intersections) {
-                const {emissive} = mesh.material
-                emissive.origHex = true
-                emissive.setHex(0xff0000)
-                console.log(mesh.name + ': set color')
-            }
-
-            // определяем возможность идти
-
-            this.newPos.copy(this._model.position)
-            this.newPos.x += moveX
-            this.newPos.z += moveZ
-
-            this._collider.setFromCenterAndSize(this.newPos, COLLIDER_SIZE)
-            //this.raycaster.ray.origin.copy(this.newPos)
-
-
-            // если по новым координатам нету прежних пересечений
-            for (let i = 0; i < intersections.length; i++) {
-                const intsec = intersections[i]
-                objectBounding.setFromCenterAndSize(intsec.position, objectSize)
-                if (!this._collider.intersectsBox(objectBounding)) {
-                    intersections.splice(i, 1)
-                    i--
-                }
-            }
-
-            if (intersections.length == 0) {
+            if (!this.intersections.length) {
                 this._model.position.x += moveX
                 this._model.position.z += moveZ
                 this.updateCameraTarget(moveX, moveZ)
+
+                //this._colliderBox
+                //this.newPos.copy(this._model.position)
+                //this.newPos.x -= moveX*2
+                //this.newPos.z -= moveZ*2
+
+                this._colliderBox.setFromCenterAndSize(this._model.position, COLLIDER_SIZE)
+
+
+                this._colliderBoxHelper.position.x += moveX
+                this._colliderBoxHelper.position.z += moveZ
+                //this._colliderBoxHelper.quaternion.rotateTowards(this.rotateQua, 0.2)
+
+
+                //this._collider.set(this._model.position, 2)
+                //this._colliderHelper.position.x += moveX
+                //this._colliderHelper.position.z += moveZ
+                //this._colliderHelper.quaternion.rotateTowards(this.rotateQua, 0.2)
+
+
+                // по текущему положению
+
+                for (const m of objects) {
+                    objectBounding.setFromCenterAndSize(m.position, objectSize)
+                    if (this._colliderBox.intersectsBox(objectBounding)) {
+                        this.intersections.push(m as ChMesh)
+                    }
+                }
+            }
+            else {
+
+                // проверяем по новым координатам
+                this.newPos.copy(this._model.position)
+                this.newPos.x += moveX * 2
+                this.newPos.z += moveZ * 2
+                //this._collider.set(this.newPos, 2)
+                this._colliderBox.setFromCenterAndSize(this.newPos, COLLIDER_SIZE)
+
+                const outedIntersections: ChMesh[] = []
+                // если по новым координатам нету прежних пересечений
+                for (let i = 0; i < this.intersections.length; i++) {
+                    const intsec = this.intersections[i]
+                    objectBounding.setFromCenterAndSize(intsec.position, objectSize)
+                    if (!this._colliderBox.intersectsBox(objectBounding)) {
+                        this.intersections.splice(i, 1)
+                        outedIntersections.push(intsec)
+                        i--
+                    }
+                }
+
+                // если больше не пересекает, восстанавливаем цвет
+                for (const i of outedIntersections) {
+                    const {emissive} = i.material
+                    if (emissive.origHex) {
+                        console.log(i.name + ': restore color')
+                        emissive.setHex(0)
+                        emissive.origHex = false
+                    }
+                }
+
+                // красим пересечения
+                for (const mesh of this.intersections) {
+                    const {emissive} = mesh.material
+                    emissive.origHex = true
+                    emissive.setHex(0xff0000)
+                    console.log(mesh.name + ': set color')
+                }
+
             }
 
         }
@@ -487,7 +505,6 @@ export class CharacterControls {
         if (this._currentAction == 'braced_hang_to_crouch') {
 
         }
-
 
 
 
@@ -546,3 +563,6 @@ export class CharacterControls {
 
 
 }
+
+
+

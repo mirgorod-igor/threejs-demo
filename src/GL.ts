@@ -1,9 +1,10 @@
 import {
-    AxesHelper, Box3, BoxGeometry, BoxHelper, CameraHelper, Clock,
-    Color, DirectionalLight, DirectionalLightHelper, Mesh, MeshBasicMaterial, Object3D,
+    AudioListener, AudioLoader, Audio,
+    AxesHelper, Clock,
+    Color, DirectionalLight, Object3D,
     PerspectiveCamera,
     Raycaster,
-    Scene, SphereGeometry, sRGBEncoding,
+    Scene,
     Vector3, WebGLRenderer
 } from 'three'
 
@@ -12,6 +13,8 @@ import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls'
 import {degToRad} from 'three/src/math/MathUtils'
 import {createMainCharacter} from './objects'
 import DirLightHelper from './DirLightImage'
+
+
 
 // SCENE
 const scene = new Scene()
@@ -143,4 +146,9 @@ function animate() {
 document.getElementById('root')!.appendChild(renderer.domElement)
 
 animate()
+
+
+
+const alistener = new AudioListener()
+camera.add(alistener)
 
